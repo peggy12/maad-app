@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get Your New Page Info</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #1877f2; }
+        button {
+            background: #1877f2;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover { background: #166fe5; }
+        #output {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            display: none;
+        }
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #1877f2;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .success { background: #d4edda; border-color: #28a745; }
+        .error { background: #f8d7da; border-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Get Your New Page Information</h1>
+        
+        <div class="info-box">
+            <strong>Why do we need this?</strong>
+            <p>When you converted from Professional Profile to a traditional Page, your Page ID or permissions may have changed. We need to get fresh information.</p>
+        </div>
+
+        <h3>Step 1: Get Your Pages</h3>
+        <p>Click this button to see all pages you manage:</p>
+        <button onclick="getMyPages()">📋 Get My Pages</button>
+
+        <div id="output"></div>
+        <div id="pages"></div>
+    </div>
+
+    <script>
+        const ACCESS_TOKEN = 'EAAIFQlajmvcBPgZCdi7UMhXFeAROO1itV5r47w4fhao3pZBHPbMlXAPeQPkC3odrdfdU5RDNWpTK4MkZB79bQPljX5q5ntASEwgOcIBNlmWULaluZAReIKSJRJZAzoi7SZBif6Viqc3Sx1EBa3TFmDMnNPy1lbKZAVID3t0jd681Lnrjg4ReoDL5A1cnEMKZAMAYNV7oBiM7XiHxftLjlhUZBuZCwZCHZC7ghoa55N5w8ux0ZAVZB3vAZDZD';
+
+        async function getMyPages() {
+            const output = document.getElementById('output');
+            const pagesDiv = document.getElementById('pages');
+            
+            output.style.display = 'block';
+            output.textContent = 'Fetching your Facebook pages...\n\n';
+
+            try {
+                // Get list of pages the user manages
+                const response = await fetch(
+                    `https://graph.facebook.com/v20.0/me/accounts?access_token=${ACCESS_TOKEN}`
+                );
+                const data = await response.json();
+
+                if (data.error) {
+                    output.className = 'error';
+                    output.textContent = `❌ Error: ${data.error.message}\n`;
+                    output.textContent += `Error Code: ${data.error.code}\n`;
+                    
+                    if (data.error.code === 190) {
+                        output.textContent += '\n⚠️ Your token is invalid or expired.\n';
+                        output.textContent += 'Go to Graph API Explorer and get a new User Access Token (not Page token yet).\n';
+                    }
+                    return;
+                }
+
+                if (!data.data || data.data.length === 0) {
+                    output.textContent += '⚠️ No pages found. This means:\n';
+                    output.textContent += '   - You might not have any Facebook Pages\n';
+                    output.textContent += '   - OR your token needs pages_show_list permission\n';
+                    return;
+                }
+
+                output.textContent = `✅ Found ${data.data.length} page(s)!\n\n`;
+                
+                pagesDiv.innerHTML = '<h3>Your Pages:</h3>';
+                
+                for (const page of data.data) {
+                    output.textContent += `📄 Page: ${page.name}\n`;
+                    output.textContent += `   ID: ${page.id}\n`;
+                    output.textContent += `   Access Token: ${page.access_token.substring(0, 20)}...\n`;
+                    output.textContent += `   Category: ${page.category || 'N/A'}\n\n`;
+
+                    const pageBox = document.createElement('div');
+                    pageBox.className = 'info-box success';
+                    pageBox.innerHTML = `
+                        <h4>📄 ${page.name}</h4>
+                        <p><strong>Page ID:</strong> <code>${page.id}</code></p>
+                        <p><strong>Page Access Token:</strong> <code>${page.access_token}</code></p>
+                        <button onclick="testPagePost('${page.id}', '${page.access_token}')">🧪 Test Post to This Page</button>
+                    `;
+                    pagesDiv.appendChild(pageBox);
+                }
+
+                output.textContent += '✅ Copy the Page ID and Page Access Token above!\n';
+                output.textContent += 'Update your .env file with these values.\n';
+
+            } catch (error) {
+                output.className = 'error';
+                output.textContent = `❌ Network Error: ${error.message}\n`;
+            }
+        }
+
+        async function testPagePost(pageId, pageToken) {
+            const output = document.getElementById('output');
+            output.style.display = 'block';
+            output.textContent = `\nTesting post to Page ID: ${pageId}...\n`;
+
+            try {
+                const response = await fetch(
+                    `https://graph.facebook.com/v20.0/${pageId}/feed`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: '🔧 Test post from MAAD app! If you see this, the API is working! 🎉',
+                            access_token: pageToken
+                        })
+                    }
+                );
+
+                const data = await response.json();
+
+                if (data.error) {
+                    output.textContent += `\n❌ Post Failed: ${data.error.message}\n`;
+                    output.textContent += `Error Code: ${data.error.code}\n`;
+                } else {
+                    output.textContent += `\n✅ SUCCESS! Post created!\n`;
+                    output.textContent += `Post ID: ${data.id}\n`;
+                    output.textContent += `\n🎉 Your page can now receive posts via API!\n`;
+                    output.textContent += `\nUpdate your .env with:\n`;
+                    output.textContent += `VITE_FACEBOOK_PAGE_ID=${pageId}\n`;
+                    output.textContent += `VITE_FACEBOOK_ACCESS_TOKEN=${pageToken}\n`;
+                }
+            } catch (error) {
+                output.textContent += `\n❌ Network Error: ${error.message}\n`;
+            }
+        }
+    </script>
+</body>
+</html>

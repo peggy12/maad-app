@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Job Search with Sample Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #1877f2; }
+        .option {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 15px 0;
+            border-left: 4px solid #1877f2;
+            border-radius: 5px;
+        }
+        .option h3 { margin-top: 0; color: #333; }
+        button {
+            background: #1877f2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover { background: #166fe5; }
+        button.secondary {
+            background: #42b72a;
+        }
+        button.secondary:hover {
+            background: #36a420;
+        }
+        .jobs {
+            margin-top: 20px;
+        }
+        .job-card {
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #42b72a;
+        }
+        .job-score {
+            display: inline-block;
+            background: #42b72a;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .keywords {
+            color: #1877f2;
+            font-style: italic;
+            margin-top: 8px;
+        }
+        #output {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 MAAD Job Search Test</h1>
+        <p><strong>Status:</strong> ✅ API Connected | ❌ No posts on your page yet</p>
+
+        <div class="option">
+            <h3>Option 1: Test with Sample Data (No Facebook needed)</h3>
+            <p>See how the job detection works with fake sample posts</p>
+            <button onclick="testWithSampleData()">🧪 Test Sample Data</button>
+        </div>
+
+        <div class="option">
+            <h3>Option 2: Add Test Posts to Your Facebook Page</h3>
+            <p>Go to your Facebook page and create some test posts with job-related content:</p>
+            <ul>
+                <li>"Looking for a handyman to fix my fence in Belfast"</li>
+                <li>"Need someone to help with house clearance ASAP"</li>
+                <li>"Anyone recommend a good electrician?"</li>
+            </ul>
+            <button class="secondary" onclick="openFacebookPage()">📝 Open My Facebook Page</button>
+            <button onclick="testRealAPI()">🔄 Test Real API (after posting)</button>
+        </div>
+
+        <div class="option">
+            <h3>Option 3: Search a Public Facebook Page with Jobs</h3>
+            <p>Search a public page that already has job posts (like community groups)</p>
+            <input type="text" id="publicPageId" placeholder="Enter Page ID (optional)" 
+                   style="width: 300px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+            <button onclick="searchPublicPage()">🔍 Search Public Page</button>
+        </div>
+
+        <div id="output"></div>
+        <div id="jobs" class="jobs"></div>
+    </div>
+
+    <script>
+        const PAGE_ID = '61555264737981';
+        const ACCESS_TOKEN = 'EAAIFQlajmvcBPgZCdi7UMhXFeAROO1itV5r47w4fhao3pZBHPbMlXAPeQPkC3odrdfdU5RDNWpTK4MkZB79bQPljX5q5ntASEwgOcIBNlmWULaluZAReIKSJRJZAzoi7SZBif6Viqc3Sx1EBa3TFmDMnNPy1lbKZAVID3t0jd681Lnrjg4ReoDL5A1cnEMKZAMAYNV7oBiM7XiHxftLjlhUZBuZCwZCHZC7ghoa55N5w8ux0ZAVZB3vAZDZD';
+
+        // Sample job posts for testing
+        const samplePosts = [
+            {
+                message: "Looking for a reliable handyman in Belfast area. Need fence repairs and some painting done. Must have own tools. Good rates paid! Contact ASAP",
+                created_time: new Date().toISOString(),
+                id: "sample_1"
+            },
+            {
+                message: "URGENT: Need house clearance service this weekend. 3 bedroom house, lots of junk to remove. Belfast North area. Any recommendations?",
+                created_time: new Date().toISOString(),
+                id: "sample_2"
+            },
+            {
+                message: "Anyone know a good electrician? Need some wiring work done in my shop. Licensed and insured required.",
+                created_time: new Date().toISOString(),
+                id: "sample_3"
+            },
+            {
+                message: "Just sharing some photos from my weekend!",
+                created_time: new Date().toISOString(),
+                id: "sample_4"
+            },
+            {
+                message: "Hiring: Plumber needed for bathroom renovation project. Experience required. Competitive pay. Start next week.",
+                created_time: new Date().toISOString(),
+                id: "sample_5"
+            }
+        ];
+
+        function analyzeJobPost(message) {
+            const highWeight = ['hiring', 'job', 'position', 'vacancy', 'recruit', 'looking for', 'need', 'wanted', 'seeking'];
+            const mediumWeight = ['work', 'help', 'service', 'anyone', 'recommend', 'quote', 'rates'];
+            const lowWeight = ['handyman', 'clearance', 'electrician', 'plumber', 'painter', 'builder'];
+            
+            const lowerMessage = message.toLowerCase();
+            let score = 0;
+            let matches = [];
+            
+            highWeight.forEach(kw => {
+                if (lowerMessage.includes(kw)) {
+                    score += 0.3;
+                    matches.push(kw);
+                }
+            });
+            
+            mediumWeight.forEach(kw => {
+                if (lowerMessage.includes(kw)) {
+                    score += 0.15;
+                    matches.push(kw);
+                }
+            });
+            
+            lowWeight.forEach(kw => {
+                if (lowerMessage.includes(kw)) {
+                    score += 0.1;
+                    matches.push(kw);
+                }
+            });
+            
+            return {
+                score: Math.min(score, 1),
+                matches: [...new Set(matches)]
+            };
+        }
+
+        function displayJobs(posts) {
+            const jobsDiv = document.getElementById('jobs');
+            const output = document.getElementById('output');
+            
+            output.style.display = 'block';
+            output.textContent = `Analyzed ${posts.length} posts...\n\n`;
+            
+            const jobs = posts.map(post => {
+                const analysis = analyzeJobPost(post.message || '');
+                return {
+                    ...post,
+                    ...analysis
+                };
+            }).filter(job => job.score > 0.3);
+            
+            output.textContent += `Found ${jobs.length} potential job posts!\n`;
+            
+            if (jobs.length === 0) {
+                jobsDiv.innerHTML = '<p style="color: #666;">No jobs found with score > 0.3</p>';
+                return;
+            }
+            
+            jobsDiv.innerHTML = jobs.map(job => `
+                <div class="job-card">
+                    <span class="job-score">Score: ${job.score.toFixed(2)}</span>
+                    <p><strong>${job.message.substring(0, 150)}${job.message.length > 150 ? '...' : ''}</strong></p>
+                    <div class="keywords">
+                        🏷️ Matched keywords: ${job.matches.join(', ')}
+                    </div>
+                    <small style="color: #666;">Posted: ${new Date(job.created_time).toLocaleString()}</small>
+                </div>
+            `).join('');
+        }
+
+        function testWithSampleData() {
+            displayJobs(samplePosts);
+        }
+
+        async function testRealAPI() {
+            const output = document.getElementById('output');
+            output.style.display = 'block';
+            output.textContent = 'Fetching posts from your Facebook page...\n';
+            
+            try {
+                const response = await fetch(`https://graph.facebook.com/v20.0/${PAGE_ID}/feed?fields=id,message,created_time&limit=25&access_token=${ACCESS_TOKEN}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    output.textContent += `❌ Error: ${data.error.message}\n`;
+                    return;
+                }
+                
+                if (!data.data || data.data.length === 0) {
+                    output.textContent += '❌ Still no posts found. Try adding some posts to your page first!\n';
+                    return;
+                }
+                
+                displayJobs(data.data);
+            } catch (error) {
+                output.textContent += `❌ Network error: ${error.message}\n`;
+            }
+        }
+
+        function openFacebookPage() {
+            window.open(`https://www.facebook.com/${PAGE_ID}`, '_blank');
+        }
+
+        async function searchPublicPage() {
+            const pageId = document.getElementById('publicPageId').value.trim() || '61555264737981';
+            const output = document.getElementById('output');
+            output.style.display = 'block';
+            output.textContent = `Searching public page: ${pageId}...\n`;
+            
+            try {
+                const response = await fetch(`https://graph.facebook.com/v20.0/${pageId}/feed?fields=id,message,created_time&limit=25&access_token=${ACCESS_TOKEN}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    output.textContent += `❌ Error: ${data.error.message}\n`;
+                    if (data.error.code === 100) {
+                        output.textContent += '\n⚠️ This page might be private or you need permission to access it.\n';
+                    }
+                    return;
+                }
+                
+                if (!data.data || data.data.length === 0) {
+                    output.textContent += '❌ No posts found on this page.\n';
+                    return;
+                }
+                
+                displayJobs(data.data);
+            } catch (error) {
+                output.textContent += `❌ Network error: ${error.message}\n`;
+            }
+        }
+    </script>
+</body>
+</html>
