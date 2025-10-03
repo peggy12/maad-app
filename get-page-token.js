@@ -14,7 +14,7 @@ console.log('5. Copy the token and replace USER_TOKEN below');
 console.log('');
 
 // Replace this with your user access token
-const USER_TOKEN = 'EAAIFQlajmvcBPhhaLsB2g9MxEzSsdBxEU39uTDbP8vDsvOIq8NTmMDy2KaoBKq1dbeDZCnVves9ZCfwBZAxkG5G6UZCh3oNKZBT552qpvspT6ITpHGqreAdkcBNq3Dw1ZAsXfZClhODeUtK6ZBhmcaHbzeKgxlfoEDEmNry8gVm0AKoEiQzP3pZAdsoeett97';
+const USER_TOKEN = 'EAAIFQlajmvcBPs8ZAt2dVqqpzYd2pNnopfRxXtWBvPaZAuxZBTaQZBTJkVwAaVZAPNNZAcgB1gDPHYeOnZCHzQH4CrnWGYnDvHjWhUaJRUvOd1lpUzxEqZCe9GJ6VAgsa0hnckqjxs61vvoF7zBxrFZB5V12UPsMVlb80ePYAH7awXOp2OFQVdkah5uDWdN1taGuF';
 
 console.log('✅ Using your provided token to find page tokens...');
 

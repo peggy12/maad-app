@@ -1,6 +1,6 @@
 // Quick Facebook API test
 const pageId = '820172544505737';
-const appId = '568732432964343';
+const appId = '784989367727586';
 const token = 'EAAIFQlajmvcBPuHophvJ3uAVtYQNeE1mxKYnJbldJu07yTz5SJCn9IiCFHR7kVgZAewZCSLnJCtwRzH4ZCZB6BDTw6EfBfZBQ7om8y4hlIAxG07eWkr9IUGfydo1DbSIOEADcJ4ZBpoa5eZBAnoAm1BwPMn7pZAhoOPXRl1TLbsku8k0J9MTeutoCfxiI9IXZBHxFU4nI';
 
 console.log('🔍 Testing Facebook App Configuration...');
