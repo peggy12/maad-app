@@ -116,6 +116,16 @@ export async function searchFacebookFeedForJobs(
         errorData = { message: "Unknown error", error: { code: response.status } };
       }
       
+      // Check for specific token expiration error
+      if (errorData.error?.code === 190) {
+        return {
+          success: false,
+          jobs: [],
+          totalPosts: 0,
+          error: "Facebook access token has expired. Please get a new token from the Facebook Graph API Explorer and update your environment variables."
+        };
+      }
+      
       return {
         success: false,
         jobs: [],
