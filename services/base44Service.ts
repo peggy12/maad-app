@@ -4,14 +4,23 @@
  * This service handles the Base44 agent integration for both:
  * 1. React chat interface (browser side)
  * 2. Deno server-side processing (main.ts)
+ * 
+ * Enhanced with advanced AI capabilities:
+ * - Context-aware conversation with memory
+ * - Response caching for faster repeated queries
+ * - Performance monitoring and metrics
+ * - User preferences and learning
  */
+
+import { base44Cache, performanceTracker, debounce } from '../utils/performance.js';
+import { conversationMemory } from './conversationMemory.js';
+import { contextAwareness } from './contextAwareness.js';
 
 // Mock Base44 SDK for production builds
 const createClientFromRequest = (request?: any) => ({
   asServiceRole: {
     entities: {},
     integrations: {},
-    sso: undefined,
     functions: {
       invoke: async (functionName: string, data: any) => ({ result: 'mock' })
     },
@@ -56,12 +65,13 @@ export interface Base44Config {
   baseUrl?: string;
   agentName?: string;
   facebookPageId?: string;
-  facebookAccessToken?: string;
+  facebookAccessToken?: string | undefined;
 }
 
 class Base44Service {
   private client: Base44Client | null = null;
   private config: Base44Config = {};
+  private debouncedInvoke = debounce(this.invokeAgent.bind(this), 300);
   
   constructor(config?: Base44Config) {
     this.config = {
@@ -81,7 +91,7 @@ class Base44Service {
       
       if (hasApiKey && this.config.baseUrl) {
         // Production Base44 API integration
-        console.log('✅ Initializing Base44 with API key for agent: - base44Service.ts:84', this.config.agentName);
+        console.log('✅ Initializing Base44 with API key for agent: - base44Service.ts:91', this.config.agentName);
         
         this.client = {
           asServiceRole: {
@@ -125,7 +135,7 @@ class Base44Service {
           asServiceRole: {
             entities: sdkClient.asServiceRole?.entities || {},
             integrations: sdkClient.asServiceRole?.integrations || {},
-            sso: sdkClient.asServiceRole?.sso || undefined,
+            sso: (sdkClient.asServiceRole as any)?.sso || undefined,
             functions: sdkClient.asServiceRole?.functions || {
               invoke: async () => ({ output: 'Default response' })
             },
@@ -153,7 +163,7 @@ class Base44Service {
         };
       } else {
         // Browser-side initialization - use mock or API based on credentials
-        console.warn('Browserside Base44 initialization  creating mock client - base44Service.ts:156');
+        console.warn('Browserside Base44 initialization  creating mock client - base44Service.ts:163');
         
         // Mock client for browser development
         this.client = {
@@ -165,7 +175,7 @@ class Base44Service {
             },
             agents: {
               invoke: async (agentName: string, prompt: string) => {
-                console.log(`🤖 Mock Base44 Agent ${agentName}: - base44Service.ts:168`, prompt);
+                console.log(`🤖 Mock Base44 Agent ${agentName}: - base44Service.ts:175`, prompt);
                 // Return appropriate responses based on the prompt
                 if (prompt.includes('IGNORE')) {
                   return { output: 'IGNORE' };
@@ -221,9 +231,9 @@ class Base44Service {
         };
       }
       
-      console.log('✅ Base44 SDK initialized successfully - base44Service.ts:207');
+      console.log('✅ Base44 SDK initialized successfully - base44Service.ts:231');
     } catch (error) {
-      console.error('❌ Failed to initialize Base44 SDK: - base44Service.ts:209', error);
+      console.error('❌ Failed to initialize Base44 SDK: - base44Service.ts:233', error);
       throw error;
     }
   }
@@ -235,19 +245,39 @@ class Base44Service {
     
     const agent = agentName || this.config.agentName || 'quote_assistant';
     
+    // Create cache key from agent and prompt (first 100 chars to avoid huge keys)
+    const cacheKey = `${agent}:${prompt.substring(0, 100)}`;
+    
+    // Check cache first for performance
+    const cachedResponse = base44Cache.get(cacheKey);
+    if (cachedResponse) {
+      console.log(`⚡ Using cached Base44 response for agent "${agent}" - base44Service.ts:251`);
+      return cachedResponse;
+    }
+    
+    // Start performance tracking
+    const endTimer = performanceTracker.startTimer(`base44_invoke_${agent}`);
+    
     try {
-      console.log(`🤖 Invoking Base44 agent "${agent}" with prompt: - base44Service.ts:222`, prompt);
+      console.log(`🤖 Invoking Base44 agent "${agent}" with prompt: - base44Service.ts:259`, prompt);
       
       const agents = this.client.asServiceRole?.agents;
       if (!agents?.invoke) {
         throw new Error('Agents not available in client');
       }
-      const response = await agents.invoke(agent, prompt);
       
-      console.log('✅ Base44 agent response: - base44Service.ts:230', response.output);
+      const response = await agents.invoke(agent, prompt);
+      const duration = endTimer();
+      
+      console.log(`✅ Base44 agent response (${duration.toFixed(2)}ms): - base44Service.ts:269`, response.output);
+      
+      // Cache the response for 5 minutes
+      base44Cache.set(cacheKey, response.output, 5);
+      
       return response.output;
     } catch (error) {
-      console.error('❌ Base44 agent invocation failed: - base44Service.ts:233', error);
+      endTimer(); // End timer even on error
+      console.error('❌ Base44 agent invocation failed: - base44Service.ts:277', error);
       throw error;
     }
   }
@@ -282,7 +312,36 @@ Keep response under 100 words, friendly but professional.`;
     return this.invokeAgent(prompt);
   }
   
-  async generateChatResponse(userMessage: string, context?: string): Promise<string> {
+  async generateChatResponse(userMessage: string, context?: string, conversationId?: string): Promise<string> {
+    // Use context awareness if conversation ID is provided
+    if (conversationId) {
+      try {
+        // Build contextual prompt with conversation history
+        const contextualPrompt = await contextAwareness.buildContextualPrompt(
+          conversationId,
+          userMessage,
+          true // include history
+        );
+        
+        // Format full prompt for Base44
+        const fullPrompt = contextAwareness.formatPromptForBase44(contextualPrompt);
+        
+        console.log(`🧠 Using context-aware prompt with ${contextualPrompt.metadata.messageCount} previous messages`);
+        
+        // Invoke agent with contextual prompt
+        const response = await this.invokeAgent(fullPrompt);
+        
+        // Learn from the conversation
+        await contextAwareness.learnFromConversation(conversationId);
+        
+        return response;
+      } catch (error) {
+        console.warn('Failed to use context awareness, falling back to basic prompt:', error);
+        // Fallback to basic prompt
+      }
+    }
+    
+    // Fallback: basic prompt without context awareness
     const contextStr = context ? `Context: ${context}\n\n` : '';
     const prompt = `${contextStr}User message: ${userMessage}\n\nRespond as MAAD, a helpful local handyman and clearance service in Fife, Scotland. Be friendly, professional, and helpful.`;
     
@@ -292,7 +351,7 @@ Keep response under 100 words, friendly but professional.`;
   // Service role methods (for server-side use)
   async invokeAsService(prompt: string, agentName?: string): Promise<string> {
     if (!this.client?.asServiceRole) {
-      console.warn('Service role not available, falling back to regular invoke - base44Service.ts:278');
+      console.warn('Service role not available, falling back to regular invoke - base44Service.ts:322');
       return this.invokeAgent(prompt, agentName);
     }
     
@@ -306,7 +365,7 @@ Keep response under 100 words, friendly but professional.`;
       const response = await agents.invoke(agent, prompt);
       return response.output;
     } catch (error) {
-      console.error('❌ Base44 service role invocation failed: - base44Service.ts:292', error);
+      console.error('❌ Base44 service role invocation failed: - base44Service.ts:336', error);
       throw error;
     }
   }

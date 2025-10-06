@@ -1,9 +1,10 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { toast } from "react-toastify";
 // @ts-ignore - jobSearchIntegration.js exists but lacks type definitions
 import { searchJobsAsText } from './jobSearchIntegration.js';
 import { getBase44Service } from './services/base44Service.js';
 import type Base44Service from './services/base44Service.js';
+import { conversationMemory } from './services/conversationMemory.js';
 
 interface UseSendMessageProps {
   inputValue: string;
@@ -33,6 +34,41 @@ export function useSendMessage({
   base44Service,
 }: UseSendMessageProps) {
   const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [conversationId, setConversationId] = useState<string>('');
+
+  // Initialize or load conversation
+  useEffect(() => {
+    const initConversation = async () => {
+      // Check if we have an existing conversation in localStorage
+      const savedId = localStorage.getItem('maad_current_conversation_id');
+      
+      if (savedId) {
+        // Load existing conversation
+        const existing = await conversationMemory.getConversation(savedId);
+        if (existing) {
+          setConversationId(savedId);
+          console.log('📖 Loaded existing conversation:', savedId);
+          return;
+        }
+      }
+      
+      // Create new conversation
+      const newId = `conv_${Date.now()}`;
+      await conversationMemory.saveConversation({
+        id: newId,
+        title: 'New Conversation',
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+      
+      setConversationId(newId);
+      localStorage.setItem('maad_current_conversation_id', newId);
+      console.log('✨ Created new conversation:', newId);
+    };
+    
+    initConversation();
+  }, []);
 
   const sendMessage = useCallback(async () => {
     const content = inputValue.trim();
@@ -155,9 +191,24 @@ export function useSendMessage({
     }, 30000);
 
     try {
-      // Get Base44 agent response
+      // Save user message to conversation memory
+      if (conversationId) {
+        await conversationMemory.addMessage(conversationId, 'user', content);
+      }
+      
+      // Display user message in UI
+      if (addMessage) {
+        addMessage('user', content);
+      }
+      
+      // Get Base44 agent response with context awareness
       const service = base44Service || getBase44Service();
-      const agentResponse = await service.generateChatResponse(content);
+      const agentResponse = await service.generateChatResponse(content, undefined, conversationId);
+      
+      // Save assistant response to conversation memory
+      if (conversationId) {
+        await conversationMemory.addMessage(conversationId, 'assistant', agentResponse);
+      }
       
       // Display agent response in UI
       if (addMessage) {

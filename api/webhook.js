@@ -8,10 +8,10 @@ export default function handler(req, res) {
 
     // Verify token
     if (mode === 'subscribe' && token === 'maadlad_verify_token') {
-      console.log('✅ Webhook verified');
+      console.log('✅ Webhook verified - webhook.js:11');
       res.status(200).send(challenge);
     } else {
-      console.log('❌ Webhook verification failed');
+      console.log('❌ Webhook verification failed - webhook.js:14');
       res.status(403).send('Forbidden');
     }
   }
@@ -22,7 +22,7 @@ export default function handler(req, res) {
     
     // Verify this is a page subscription
     if (body.object === 'page') {
-      console.log('📢 Facebook webhook event received');
+      console.log('📢 Facebook webhook event received - webhook.js:25');
       
       // Process each entry
       body.entry?.forEach((entry) => {
@@ -30,7 +30,7 @@ export default function handler(req, res) {
           if (change.field === 'feed') {
             const post = change.value;
             if (post.message) {
-              console.log('📝 New post:', post.message.substring(0, 100) + '...');
+              console.log('📝 New post: - webhook.js:33', post.message.substring(0, 100) + '...');
               // Here you would process the job post
             }
           }

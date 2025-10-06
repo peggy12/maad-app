@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deploy MAAD Webhook to Railway</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .code { background: #f5f5f5; padding: 15px; border-radius: 5px; font-family: monospace; }
+        .step { margin: 20px 0; padding: 15px; border-left: 4px solid #007acc; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Deploy MAAD Webhook to Railway</h1>
+    
+    <div class="step">
+        <h3>Step 1: Create Railway Account</h3>
+        <p>Go to <a href="https://railway.app" target="_blank" rel="noopener noreferrer">https://railway.app</a> and sign up for free</p>
+    </div>
+    
+    <div class="step">
+        <h3>Step 2: Deploy from GitHub</h3>
+        <p>1. Click "Deploy from GitHub repo"</p>
+        <p>2. Connect your GitHub account</p>
+        <p>3. Select your maad-app repository</p>
+        <p>4. Railway will auto-detect it's a Node.js app</p>
+    </div>
+    
+    <div class="step">
+        <h3>Step 3: Configure Environment</h3>
+        <p>In Railway dashboard, set these environment variables:</p>
+        <div class="code">
+NODE_ENV=production<br>
+PORT=3000
+        </div>
+    </div>
+    
+    <div class="step">
+        <h3>Step 4: Update package.json</h3>
+        <p>Make sure your package.json has:</p>
+        <div class="code">
+{<br>
+  "scripts": {<br>
+    "start": "node railway-webhook.js"<br>
+  },<br>
+  "dependencies": {<br>
+    "express": "^4.18.2"<br>
+  }<br>
+}
+        </div>
+    </div>
+    
+    <div class="step">
+        <h3>Step 5: Get Your Webhook URL</h3>
+        <p>After deployment, Railway will give you a URL like:</p>
+        <div class="code">https://your-app-name.railway.app/webhook</div>
+        <p>Use this URL in Facebook Developer Console with verify token: <strong>maadlad_verify_token</strong></p>
+    </div>
+    
+    <h2>Alternative: Use webhook.site for immediate testing</h2>
+    <p>For immediate testing while setting up Railway:</p>
+    <ol>
+        <li>Go to <a href="https://webhook.site" target="_blank" rel="noopener noreferrer">webhook.site</a></li>
+        <li>Copy your unique URL</li>
+        <li>Use it in Facebook Developer Console (no verify token needed)</li>
+        <li>You'll see all webhook events in real-time</li>
+    </ol>
+</body>
+</html>
